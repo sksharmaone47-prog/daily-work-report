@@ -7,20 +7,23 @@ import urllib.parse
 st.set_page_config(page_title="Daily Cash Report", layout="centered")
 
 # --- Custom CSS for Centering Table Content ---
+# Yahan maine 'unsafe_allow_html' ko sahi kar diya hai
 st.markdown("""
     <style>
     div[data-testid="stTable"] table {
         margin-left: auto;
         margin-right: auto;
+        width: 100%;
     }
     th {
         text-align: center !important;
+        background-color: #f0f2f6;
     }
     td {
         text-align: center !important;
     }
     </style>
-    """, unsafe_layout=True)
+    """, unsafe_allow_html=True)
 
 # --- Header Section ---
 st.title("📝 Daily Cash Report")
@@ -66,11 +69,11 @@ if st.session_state.history:
     if report_name:
         st.subheader(f"👤 Report For: {report_name}")
 
-    # History Table (Centering Applied via CSS above)
+    # History Table
     display_df = pd.DataFrame(filtered_data)[["Date", "Quantity", "Amount"]]
     display_df = display_df.sort_values(by="Date", ascending=False)
     
-    # Rendering Table
+    # Rendering Table with centered style
     st.table(display_df.style.format({"Amount": "{:.2f}"}))
 
     month_total = sum(item['Amount'] for item in filtered_data)
@@ -106,3 +109,4 @@ if st.session_state.history:
             st.rerun()
 else:
     st.write("Abhi tak koi data nahi hai.")
+    
