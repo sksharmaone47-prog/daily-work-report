@@ -4,10 +4,13 @@ from datetime import datetime
 import urllib.parse
 
 # App Configuration
-st.set_page_config(page_title="Daily Work Report", layout="centered")
+st.set_page_config(page_title="Daily Cash Report", layout="centered")
 
-# Title
-st.title("📝 Daily Work Report")
+# --- Header Section ---
+st.title("📝 Daily Cash Report")
+
+# Name option at the top (Global for the report)
+report_name = st.text_input("Kiske liye report hai? (Naam)", placeholder="Yahan naam likhein, jaise: Sunil Sharma")
 
 # Initialize Session State
 if 'history' not in st.session_state:
@@ -16,30 +19,24 @@ if 'history' not in st.session_state:
 # --- Input Section ---
 with st.expander("➕ Nayi Entry Karein", expanded=True):
     date_today = st.date_input("Date", datetime.now())
-    # Name Option Add Kiya Gaya
-    name = st.text_input("Kaam/Vyakti Ka Naam", placeholder="Jaise: Sunil, Site Work, etc.")
+    # Rate and Quantity (No point in quantity)
     rate = st.number_input("Rate (per unit)", min_value=0.0, step=1.0, value=0.0)
-    # Quantity se point hatane ke liye step=1 aur value=0 (Integer)
     quantity = st.number_input("Quantity", min_value=0, step=1, value=0)
     
     total_amount = rate * quantity
     st.info(f"**Total Calculation: ₹{total_amount}**")
 
     if st.button("Save Entry"):
-        if not name:
-            st.error("Kripya Naam bharein!")
-        else:
-            entry_id = datetime.now().timestamp()
-            entry = {
-                "ID": entry_id, 
-                "Date": date_today, 
-                "Name": name,
-                "Month": date_today.strftime("%B %Y"),
-                "Amount": total_amount
-            }
-            st.session_state.history.append(entry)
-            st.success(f"{name} ki entry save ho gayi!")
-            st.rerun()
+        entry_id = datetime.now().timestamp()
+        entry = {
+            "ID": entry_id, 
+            "Date": date_today, 
+            "Month": date_today.strftime("%B %Y"),
+            "Amount": total_amount
+        }
+        st.session_state.history.append(entry)
+        st.success("Entry save ho gayi!")
+        st.rerun()
 
 st.divider()
 
@@ -50,8 +47,12 @@ if st.session_state.history:
 
     filtered_data = [item for item in st.session_state.history if item['Month'] == selected_month]
     
-    # History Table (Ab Name bhi dikhega)
-    display_df = pd.DataFrame(filtered_data)[["Date", "Name", "Amount"]]
+    # Header showing the Name
+    if report_name:
+        st.subheader(f"👤 Report For: {report_name}")
+
+    # History Table (One line format)
+    display_df = pd.DataFrame(filtered_data)[["Date", "Amount"]]
     display_df = display_df.sort_values(by="Date", ascending=False)
     st.table(display_df)
 
@@ -61,11 +62,15 @@ if st.session_state.history:
     # --- WhatsApp Share Section ---
     st.subheader("📲 Share Report")
     
-    report_text = f"*Daily Work Report - {selected_month}*\n\n"
+    # Message formatting with Name at top
+    name_header = f"*Daily Cash Report*"
+    if report_name:
+        name_header = f"*Daily Cash Report - {report_name}*"
+        
+    report_text = f"{name_header}\n📅 Month: {selected_month}\n\n"
     for _, row in display_df.iterrows():
-        # WhatsApp message mein Name bhi jayega
-        report_text += f"📅 {row['Date']} | 👤 {row['Name']}: ₹{row['Amount']}\n"
-    report_text += f"\n*Total Amount: ₹{month_total}*"
+        report_text += f"• {row['Date']}: ₹{row['Amount']}\n"
+    report_text += f"\n*Total: ₹{month_total}*"
     
     encoded_text = urllib.parse.quote(report_text)
     whatsapp_url = f"https://wa.me/?text={encoded_text}"
@@ -75,7 +80,7 @@ if st.session_state.history:
     # --- Delete Section ---
     st.divider()
     with st.expander("🗑️ Entry Delete Karein"):
-        delete_options = {f"{item['Date']} - {item['Name']} (₹{item['Amount']})": item['ID'] for item in filtered_data}
+        delete_options = {f"{item['Date']} - ₹{item['Amount']}": item['ID'] for item in filtered_data}
         to_delete = st.selectbox("Kaunsi entry hatani hai?", options=list(delete_options.keys()))
         
         if st.button("Confirm Delete"):
