@@ -6,6 +6,22 @@ import urllib.parse
 # App Configuration
 st.set_page_config(page_title="Daily Cash Report", layout="centered")
 
+# --- Custom CSS for Centering Table Content ---
+st.markdown("""
+    <style>
+    div[data-testid="stTable"] table {
+        margin-left: auto;
+        margin-right: auto;
+    }
+    th {
+        text-align: center !important;
+    }
+    td {
+        text-align: center !important;
+    }
+    </style>
+    """, unsafe_layout=True)
+
 # --- Header Section ---
 st.title("📝 Daily Cash Report")
 
@@ -22,7 +38,6 @@ with st.expander("➕ Nayi Entry Karein", expanded=True):
     rate = st.number_input("Rate (per unit)", min_value=0.0, step=1.0, value=0.0)
     quantity = st.number_input("Quantity", min_value=0, step=1, value=0)
     
-    # Calculation with 2 decimal formatting
     total_amount = float(rate * quantity)
     st.info(f"**Total Calculation: ₹{total_amount:.2f}**")
 
@@ -30,12 +45,13 @@ with st.expander("➕ Nayi Entry Karein", expanded=True):
         entry_id = datetime.now().timestamp()
         entry = {
             "ID": entry_id, 
-            "Date": date_today, 
+            "Date": date_today.strftime("%Y-%m-%d"), 
+            "Quantity": int(quantity),
             "Month": date_today.strftime("%B %Y"),
             "Amount": total_amount
         }
         st.session_state.history.append(entry)
-        st.success("Entry save ho gayi!")
+        st.success(f"Entry Saved! (Qty: {quantity})")
         st.rerun()
 
 st.divider()
@@ -50,11 +66,11 @@ if st.session_state.history:
     if report_name:
         st.subheader(f"👤 Report For: {report_name}")
 
-    # History Table Formatting (Decimal points fixed to 2)
-    display_df = pd.DataFrame(filtered_data)[["Date", "Amount"]]
+    # History Table (Centering Applied via CSS above)
+    display_df = pd.DataFrame(filtered_data)[["Date", "Quantity", "Amount"]]
     display_df = display_df.sort_values(by="Date", ascending=False)
     
-    # Is line se table mein point ke baad sirf 2 zero dikhenge
+    # Rendering Table
     st.table(display_df.style.format({"Amount": "{:.2f}"}))
 
     month_total = sum(item['Amount'] for item in filtered_data)
@@ -69,9 +85,8 @@ if st.session_state.history:
         
     report_text = f"{name_header}\n📅 Month: {selected_month}\n\n"
     for _, row in display_df.iterrows():
-        # WhatsApp message mein bhi format fixed
-        report_text += f"• {row['Date']}: ₹{row['Amount']:.2f}\n"
-    report_text += f"\n*Total: ₹{month_total:.2f}*"
+        report_text += f"• {row['Date']} | Qty: {row['Quantity']} | ₹{row['Amount']:.2f}\n"
+    report_text += f"\n*Total Amount: ₹{month_total:.2f}*"
     
     encoded_text = urllib.parse.quote(report_text)
     whatsapp_url = f"https://wa.me/?text={encoded_text}"
@@ -81,7 +96,7 @@ if st.session_state.history:
     # --- Delete Section ---
     st.divider()
     with st.expander("🗑️ Entry Delete Karein"):
-        delete_options = {f"{item['Date']} - ₹{item['Amount']:.2f}": item['ID'] for item in filtered_data}
+        delete_options = {f"{item['Date']} - Qty: {item['Quantity']} (₹{item['Amount']:.2f})": item['ID'] for item in filtered_data}
         to_delete = st.selectbox("Kaunsi entry hatani hai?", options=list(delete_options.keys()))
         
         if st.button("Confirm Delete"):
