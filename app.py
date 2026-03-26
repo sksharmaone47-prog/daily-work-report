@@ -106,4 +106,3 @@ if st.session_state.history:
             st.rerun()
 else:
     st.write("Abhi tak koi data nahi hai.")
-    
