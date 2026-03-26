@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import urllib.parse
 
 # App Configuration
 st.set_page_config(page_title="Daily Work Report", layout="centered")
@@ -8,7 +9,7 @@ st.set_page_config(page_title="Daily Work Report", layout="centered")
 # Title
 st.title("📝 Daily Work Report")
 
-# Initialize Session State for History
+# Initialize Session State
 if 'history' not in st.session_state:
     st.session_state.history = []
 
@@ -36,26 +37,36 @@ with st.expander("➕ Nayi Entry Karein", expanded=True):
 st.divider()
 
 # --- Filter & History Section ---
-st.subheader("📜 History & Reports")
-
 if st.session_state.history:
-    # 1. Month Filter
     all_months = sorted(list(set(item['Month'] for item in st.session_state.history)))
     selected_month = st.selectbox("Month Select Karein:", all_months)
 
-    # Filter data based on month
     filtered_data = [item for item in st.session_state.history if item['Month'] == selected_month]
     
-    # 2. Display Table (Single Line Format)
+    # History Table (Ek line wala format)
     display_df = pd.DataFrame(filtered_data)[["Date", "Amount"]]
     display_df = display_df.sort_values(by="Date", ascending=False)
     st.table(display_df)
 
-    # 3. Total for the selected month
     month_total = sum(item['Amount'] for item in filtered_data)
     st.metric(f"Total ({selected_month})", f"₹{month_total}")
 
-    # 4. Delete Option (Dropdown to keep layout clean)
+    # --- WhatsApp Share Section ---
+    st.subheader("📲 Share Report")
+    
+    # Message taiyar karna
+    report_text = f"*Daily Work Report - {selected_month}*\n\n"
+    for _, row in display_df.iterrows():
+        report_text += f"📅 {row['Date']}: ₹{row['Amount']}\n"
+    report_text += f"\n*Total Amount: ₹{month_total}*"
+    
+    # URL encode karna taaki WhatsApp samajh sake
+    encoded_text = urllib.parse.quote(report_text)
+    whatsapp_url = f"https://wa.me/?text={encoded_text}"
+    
+    st.link_button("Share on WhatsApp ✅", whatsapp_url)
+
+    # --- Delete Section ---
     st.divider()
     with st.expander("🗑️ Entry Delete Karein"):
         delete_options = {f"{item['Date']} - ₹{item['Amount']}": item['ID'] for item in filtered_data}
