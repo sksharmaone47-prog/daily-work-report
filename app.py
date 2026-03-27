@@ -2,163 +2,99 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import urllib.parse
+from PIL import Image
+import io
+from streamlit_gsheets import GSheetsConnection
 
 # App Configuration
-st.set_page_config(
-    page_title="Work Report Pro", 
-    layout="centered", 
-    page_icon="📝"
-)
+st.set_page_config(page_title="Work Report Pro", layout="centered", page_icon="📝")
 
-# --- Official Layout CSS ---
+# --- Google Sheets Connection ---
+# Yahan apni Google Sheet ka URL dalein
+url = "APNI_GOOGLE_SHEET_URL_YAHAN_PASTE_KAREIN"
+
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+def get_data():
+    return conn.read(spreadsheet=url, usecols=[0,1,2,3,4,5], ttl="0")
+
+# --- CSS Styling ---
 st.markdown("""
     <style>
-    .official-header {
-        background-color: #004085;
-        padding: 25px;
-        border-radius: 12px;
-        color: white;
-        text-align: center;
-        margin-bottom: 25px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-    }
-    .logo-container { display: flex; align-items: center; gap: 12px; }
-    .main-logo { font-size: 38px; }
-    .title-text { font-size: 28px; font-weight: bold; letter-spacing: 1.5px; }
-    .sub-title { font-size: 13px; opacity: 0.8; }
-
-    div[data-testid="stTable"] table { margin-left: auto; margin-right: auto; width: 100%; border-collapse: collapse; }
-    th { text-align: center !important; background-color: #f8f9fa; color: #333; font-weight: bold; padding: 12px !important; }
-    td { text-align: center !important; padding: 10px !important; border-bottom: 1px solid #eee; }
-    
-    .dashboard-container {
-        display: flex;
-        justify-content: space-around;
-        background: #ffffff;
-        padding: 18px;
-        border-radius: 10px;
-        border: 1px solid #dee2e6;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-    }
-    .dashboard-item { text-align: center; }
-    .dashboard-label { font-size: 11px; color: #6c757d; text-transform: uppercase; font-weight: bold;}
+    .profile-container { display: flex; justify-content: center; margin-bottom: -20px; margin-top: 10px; }
+    .official-header { background-color: #004085; padding: 20px; border-radius: 12px; color: white; text-align: center; margin-bottom: 25px; }
+    .dashboard-container { display: flex; justify-content: space-around; background: #ffffff; padding: 18px; border-radius: 10px; border: 1px solid #dee2e6; margin-bottom: 20px; }
     .dashboard-value { font-size: 22px; font-weight: bold; color: #007bff; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- Header ---
-st.markdown("""
-    <div class="official-header">
-        <div class="logo-container">
-            <span class="main-logo">📝💼</span>
-            <span class="title-text">WORK REPORT PRO</span>
-        </div>
-        <div class="sub-title">Daily Operations Management System</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Initialize Session State
-if 'history' not in st.session_state: st.session_state.history = []
-if 'report_name' not in st.session_state: st.session_state.report_name = ""
+# Initialize Session State for non-sheet data
+if 'report_name' not in st.session_state: st.session_state.report_name = "Employee"
 if 'fixed_rate' not in st.session_state: st.session_state.fixed_rate = 0.0
+if 'profile_pic' not in st.session_state: st.session_state.profile_pic = None
 
-# --- Sidebar / Settings ---
+# --- Sidebar ---
 with st.sidebar:
-    st.markdown("### ⚙️ Official Settings")
-    st.session_state.report_name = st.text_input("Report Owner Name:", value=st.session_state.report_name)
-    st.session_state.fixed_rate = st.number_input("Standard Rate (₹):", value=st.session_state.fixed_rate, step=1.0)
-    if st.button("Update Profile", use_container_width=True): st.rerun()
+    st.header("⚙️ Settings")
+    st.session_state.report_name = st.text_input("Name:", st.session_state.report_name)
+    st.session_state.fixed_rate = st.number_input("Rate (₹):", value=st.session_state.fixed_rate, step=1.0)
+    uploaded_file = st.file_uploader("Upload Photo", type=['jpg', 'png', 'jpeg'])
+    if uploaded_file: st.session_state.profile_pic = uploaded_file.read()
+    if st.button("Save Profile"): st.rerun()
 
-# --- Info Bar ---
-if st.session_state.report_name:
-    st.markdown(f"**👤 Employee:** {st.session_state.report_name} | **💰 Rate:** ₹{st.session_state.fixed_rate:.2f}/unit")
-st.divider()
+# --- Profile & Header ---
+if st.session_state.profile_pic:
+    img = Image.open(io.BytesIO(st.session_state.profile_pic))
+    st.markdown('<div class="profile-container">', unsafe_allow_html=True)
+    st.image(img, width=120)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Entry Input Section ---
+st.markdown(f'<div class="official-header"><h2>📝 WORK REPORT PRO</h2><h4>{st.session_state.report_name}</h4></div>', unsafe_allow_html=True)
+
+# --- Entry Section ---
 with st.expander("📝 Add New Work Entry", expanded=True):
     col1, col2 = st.columns(2)
-    with col1:
-        date_today = st.date_input("Date", datetime.now())
-    with col2:
-        # Quantity ab 1 se start hogi (value=1)
-        quantity = st.number_input("Quantity", min_value=1, step=1, value=1)
+    with col1: date_today = st.date_input("Date", datetime.now())
+    with col2: quantity = st.number_input("Quantity", min_value=1, step=1, value=1)
     
     total_amount = float(st.session_state.fixed_rate * quantity)
-    st.write(f"Calc: {quantity} x ₹{st.session_state.fixed_rate:.2f} = **₹{total_amount:.2f}**")
-
-    if st.button("SAVE ENTRY", use_container_width=True):
+    
+    if st.button("SAVE TO CLOUD ✅", use_container_width=True):
         if st.session_state.fixed_rate > 0:
-            entry_id = datetime.now().timestamp()
-            entry = {
-                "ID": entry_id, "Date": date_today.strftime("%d-%m-%Y"), 
-                "Day": date_today.day, "Quantity": int(quantity),
-                "Month": date_today.strftime("%B %Y"), "Amount": total_amount
-            }
-            st.session_state.history.append(entry)
-            st.success("Entry saved!")
+            # Sheet se purana data laao
+            existing_data = get_data()
+            new_entry = pd.DataFrame([{
+                "ID": str(datetime.now().timestamp()),
+                "Date": date_today.strftime("%d-%m-%Y"),
+                "Day": int(date_today.day),
+                "Quantity": int(quantity),
+                "Month": date_today.strftime("%B %Y"),
+                "Amount": total_amount
+            }])
+            updated_df = pd.concat([existing_data, new_entry], ignore_index=True)
+            conn.update(spreadsheet=url, data=updated_df)
+            st.success("Data Google Sheet mein save ho gaya!")
             st.rerun()
         else:
-            st.error("Please set Rate in settings first.")
+            st.error("Rate set karein!")
 
-# --- View History / Work Record ---
-if st.session_state.history:
-    # "Official Records" ko badal kar "Work Record" kar diya gaya hai
-    st.markdown("### 📊 Work Record")
-    c1, c2 = st.columns([2, 3])
-    with c1:
-        all_months = sorted(list(set(item['Month'] for item in st.session_state.history)))
-        selected_month = st.selectbox("Month Filter", all_months)
-    with c2:
-        day_range = st.radio("Days Slot:", ["1-10", "11-20", "21-31", "Full Month"], horizontal=True, index=3)
-
-    month_data = [item for item in st.session_state.history if item['Month'] == selected_month]
-    if day_range == "1-10": filtered_data = [item for item in month_data if 1 <= item['Day'] <= 10]
-    elif day_range == "11-20": filtered_data = [item for item in month_data if 11 <= item['Day'] <= 20]
-    elif day_range == "21-31": filtered_data = [item for item in month_data if item['Day'] >= 21]
-    else: filtered_data = month_data
-
-    if filtered_data:
-        df = pd.DataFrame(filtered_data)[["Date", "Quantity", "Amount"]]
-        df['dt_obj'] = pd.to_datetime(df['Date'], format='%d-%m-%Y')
-        df = df.sort_values(by="dt_obj", ascending=False).drop(columns=['dt_obj'])
-        
-        total_qty = df["Quantity"].sum()
-        total_amt = df["Amount"].sum()
-        
-        st.markdown(f"""
-            <div class="dashboard-container">
-                <div class="dashboard-item">
-                    <div class="dashboard-label">Total Quantity</div>
-                    <div class="dashboard-value">{total_qty}</div>
-                </div>
-                <div class="dashboard-item" style="border-left: 1px solid #dee2e6; padding-left: 20px;">
-                    <div class="dashboard-label">Total Earning</div>
-                    <div class="dashboard-value">₹{total_amt:.2f}</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.table(df.style.format({"Amount": "{:.2f}"}))
-
-        # WhatsApp Share
-        report_text = f"*WORK REPORT PRO - {st.session_state.report_name}*\n📅 {selected_month}\n\n"
-        for _, row in df.iterrows():
-            report_text += f"• {row['Date']} | Qty: {row['Quantity']} | ₹{row['Amount']:.2f}\n"
-        report_text += f"\n*Grand Total Qty: {total_qty}*\n*Grand Total Amount: ₹{total_amt:.2f}*"
-        
-        st.link_button("Share Work Record ✅", f"https://wa.me/?text={urllib.parse.quote(report_text)}", use_container_width=True)
-
-    with st.expander("🗑️ Remove Entry"):
-        all_options = {f"{item['Date']} - Qty:{item['Quantity']}": item['ID'] for item in month_data}
-        to_delete = st.selectbox("Select entry:", options=list(all_options.keys()))
-        if st.button("Delete Selected"):
-            st.session_state.history = [item for item in st.session_state.history if item['ID'] != all_options[to_delete]]
-            st.rerun()
-else:
-    st.info("No records to display.")
+# --- Display Section ---
+df = get_data()
+if not df.empty:
+    st.markdown("### 📊 Work Record (From Cloud)")
+    all_months = sorted(df["Month"].unique())
+    selected_month = st.selectbox("Month", all_months)
     
+    filtered_df = df[df["Month"] == selected_month]
+    
+    if not filtered_df.empty:
+        t_qty = filtered_df["Quantity"].astype(int).sum()
+        t_amt = filtered_df["Amount"].astype(float).sum()
+        
+        st.markdown(f'<div class="dashboard-container"><div class="dashboard-value">Qty: {t_qty}</div><div class="dashboard-value">Total: ₹{t_amt:.2f}</div></div>', unsafe_allow_html=True)
+        st.table(filtered_df[["Date", "Quantity", "Amount"]])
+        
+        # WhatsApp Share logic (same as before)
+        report_text = f"*WORK REPORT PRO*\nOwner: {st.session_state.report_name}\nMonth: {selected_month}\nTotal Qty: {t_qty}\nTotal Amt: ₹{t_amt:.2f}"
+        st.link_button("Share Report", f"https://wa.me/?text={urllib.parse.quote(report_text)}")
+            
