@@ -97,7 +97,10 @@ if st.session_state.history:
             """, unsafe_allow_html=True)
         
         # Table
-        st.table(filtered_df[["Sno", "Date", "Quantity", "Amount"]])
+        # Purani line: st.table(filtered_df[["Sno", "Date", "Quantity", "Amount"]])
+# Nayi line (Index hatane ke liye):
+st.table(filtered_df[["Sno", "Date", "Quantity", "Amount"]].set_index("Sno"))
+
 
         # WhatsApp Share
         report_text = f"*WORK REPORT PRO - {st.session_state.report_name}*\n📅 {selected_month}\n\n"
