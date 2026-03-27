@@ -136,4 +136,4 @@ if st.session_state.history:
     st.download_button("📥 Download Excel Backup", data=csv, file_name=f"work_report_{datetime.now().strftime('%d_%m')}.csv", mime='text/csv', use_container_width=True)
 else:
     st.info("Abhi koi entry nahi hai. Nayi entry karke shuru karein!")
-    
+        
