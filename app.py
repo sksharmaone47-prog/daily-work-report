@@ -7,15 +7,14 @@ import urllib.parse
 st.set_page_config(
     page_title="Work Report Pro", 
     layout="centered", 
-    page_icon="📝" # Naya Browser Icon
+    page_icon="📝"
 )
 
-# --- Official Layout CSS (Including New Logo Styles) ---
+# --- Official Layout CSS ---
 st.markdown("""
     <style>
-    /* New Official Header & Logo Styling */
     .official-header {
-        background-color: #004085; /* Professional Dark Blue */
+        background-color: #004085;
         padding: 25px;
         border-radius: 12px;
         color: white;
@@ -27,30 +26,15 @@ st.markdown("""
         align-items: center;
         gap: 8px;
     }
-    .logo-container {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    .main-logo {
-        font-size: 38px;
-    }
-    .title-text {
-        font-size: 28px;
-        font-weight: bold;
-        letter-spacing: 1.5px;
-    }
-    .sub-title {
-        font-size: 13px;
-        opacity: 0.8;
-    }
+    .logo-container { display: flex; align-items: center; gap: 12px; }
+    .main-logo { font-size: 38px; }
+    .title-text { font-size: 28px; font-weight: bold; letter-spacing: 1.5px; }
+    .sub-title { font-size: 13px; opacity: 0.8; }
 
-    /* Table & Centering Styling */
     div[data-testid="stTable"] table { margin-left: auto; margin-right: auto; width: 100%; border-collapse: collapse; }
     th { text-align: center !important; background-color: #f8f9fa; color: #333; font-weight: bold; padding: 12px !important; }
     td { text-align: center !important; padding: 10px !important; border-bottom: 1px solid #eee; }
     
-    /* Dashboard Style Totals */
     .dashboard-container {
         display: flex;
         justify-content: space-around;
@@ -67,11 +51,12 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- Official Header with New Logo ---
+# --- Header ---
 st.markdown("""
     <div class="official-header">
         <div class="logo-container">
-            <span class="main-logo">📝💼</span> <span class="title-text">WORK REPORT PRO</span>
+            <span class="main-logo">📝💼</span>
+            <span class="title-text">WORK REPORT PRO</span>
         </div>
         <div class="sub-title">Daily Operations Management System</div>
     </div>
@@ -82,20 +67,16 @@ if 'history' not in st.session_state: st.session_state.history = []
 if 'report_name' not in st.session_state: st.session_state.report_name = ""
 if 'fixed_rate' not in st.session_state: st.session_state.fixed_rate = 0.0
 
-# --- Sidebar / Settings Section ---
+# --- Sidebar / Settings ---
 with st.sidebar:
     st.markdown("### ⚙️ Official Settings")
-    st.session_state.report_name = st.text_input("Report Owner Name:", value=st.session_state.report_name, placeholder="e.g. Sandeep Sharma")
+    st.session_state.report_name = st.text_input("Report Owner Name:", value=st.session_state.report_name)
     st.session_state.fixed_rate = st.number_input("Standard Rate (₹):", value=st.session_state.fixed_rate, step=1.0)
-    
-    if st.button("Update Profile", use_container_width=True):
-        st.rerun()
+    if st.button("Update Profile", use_container_width=True): st.rerun()
 
-# --- Employee Info Bar ---
+# --- Info Bar ---
 if st.session_state.report_name:
     st.markdown(f"**👤 Employee:** {st.session_state.report_name} | **💰 Rate:** ₹{st.session_state.fixed_rate:.2f}/unit")
-else:
-    st.info("Set report owner name in settings (sidebar) to start.")
 st.divider()
 
 # --- Entry Input Section ---
@@ -104,15 +85,11 @@ with st.expander("📝 Add New Work Entry", expanded=True):
     with col1:
         date_today = st.date_input("Date", datetime.now())
     with col2:
-        quantity = st.number_input("Quantity", min_value=0, step=1, value=0)
+        # Quantity ab 1 se start hogi (value=1)
+        quantity = st.number_input("Quantity", min_value=1, step=1, value=1)
     
-    # Check rate
-    if st.session_state.fixed_rate <= 0:
-        st.warning("Please set a standard rate in settings first.")
-        total_amount = 0.0
-    else:
-        total_amount = float(st.session_state.fixed_rate * quantity)
-        st.write(f"Calc: {quantity} x ₹{st.session_state.fixed_rate:.2f} = **₹{total_amount:.2f}**")
+    total_amount = float(st.session_state.fixed_rate * quantity)
+    st.write(f"Calc: {quantity} x ₹{st.session_state.fixed_rate:.2f} = **₹{total_amount:.2f}**")
 
     if st.button("SAVE ENTRY", use_container_width=True):
         if st.session_state.fixed_rate > 0:
@@ -123,29 +100,28 @@ with st.expander("📝 Add New Work Entry", expanded=True):
                 "Month": date_today.strftime("%B %Y"), "Amount": total_amount
             }
             st.session_state.history.append(entry)
-            st.success("Entry saved to official records.")
+            st.success("Entry saved!")
             st.rerun()
         else:
-            st.error("Rate must be set before saving.")
+            st.error("Please set Rate in settings first.")
 
-# --- View History / Records ---
+# --- View History / Work Record ---
 if st.session_state.history:
-    st.markdown("### 📊 Official Records")
+    # "Official Records" ko badal kar "Work Record" kar diya gaya hai
+    st.markdown("### 📊 Work Record")
     c1, c2 = st.columns([2, 3])
     with c1:
         all_months = sorted(list(set(item['Month'] for item in st.session_state.history)))
         selected_month = st.selectbox("Month Filter", all_months)
     with c2:
-        day_range = st.radio("Days Slot Filter:", ["1-10", "11-20", "21-31", "Full Month"], horizontal=True, index=3)
+        day_range = st.radio("Days Slot:", ["1-10", "11-20", "21-31", "Full Month"], horizontal=True, index=3)
 
-    # Filter Logic
     month_data = [item for item in st.session_state.history if item['Month'] == selected_month]
     if day_range == "1-10": filtered_data = [item for item in month_data if 1 <= item['Day'] <= 10]
     elif day_range == "11-20": filtered_data = [item for item in month_data if 11 <= item['Day'] <= 20]
     elif day_range == "21-31": filtered_data = [item for item in month_data if item['Day'] >= 21]
     else: filtered_data = month_data
 
-    # Display Records
     if filtered_data:
         df = pd.DataFrame(filtered_data)[["Date", "Quantity", "Amount"]]
         df['dt_obj'] = pd.to_datetime(df['Date'], format='%d-%m-%Y')
@@ -154,7 +130,6 @@ if st.session_state.history:
         total_qty = df["Quantity"].sum()
         total_amt = df["Amount"].sum()
         
-        # --- Official Dashboard Totals ---
         st.markdown(f"""
             <div class="dashboard-container">
                 <div class="dashboard-item">
@@ -168,29 +143,22 @@ if st.session_state.history:
             </div>
             """, unsafe_allow_html=True)
         
-        # --- Records Table ---
         st.table(df.style.format({"Amount": "{:.2f}"}))
 
-        # WhatsApp Share formatting
-        st.divider()
-        report_text = f"*WORK REPORT PRO - {st.session_state.report_name}*\n"
-        report_text += f"📅 {selected_month} ({day_range})\n\n"
+        # WhatsApp Share
+        report_text = f"*WORK REPORT PRO - {st.session_state.report_name}*\n📅 {selected_month}\n\n"
         for _, row in df.iterrows():
             report_text += f"• {row['Date']} | Qty: {row['Quantity']} | ₹{row['Amount']:.2f}\n"
         report_text += f"\n*Grand Total Qty: {total_qty}*\n*Grand Total Amount: ₹{total_amt:.2f}*"
         
-        st.link_button("Share Official Report ✅", f"https://wa.me/?text={urllib.parse.quote(report_text)}", use_container_width=True)
+        st.link_button("Share Work Record ✅", f"https://wa.me/?text={urllib.parse.quote(report_text)}", use_container_width=True)
 
-    else:
-        st.warning("No records found for the selected month/slot.")
-
-    # Delete Section
-    with st.expander("🗑️ Manage Records (Remove Entry)"):
+    with st.expander("🗑️ Remove Entry"):
         all_options = {f"{item['Date']} - Qty:{item['Quantity']}": item['ID'] for item in month_data}
-        to_delete = st.selectbox("Select entry to remove:", options=list(all_options.keys()))
-        if st.button("Delete Selected Entry", use_container_width=True):
+        to_delete = st.selectbox("Select entry:", options=list(all_options.keys()))
+        if st.button("Delete Selected"):
             st.session_state.history = [item for item in st.session_state.history if item['ID'] != all_options[to_delete]]
             st.rerun()
 else:
-    st.info("No records to display. Use the form above to add an entry.")
-        
+    st.info("No records to display.")
+    
