@@ -4,14 +4,15 @@ from datetime import datetime
 import urllib.parse
 
 # App Configuration
-st.set_page_config(page_title="Daily Cash Report", layout="centered")
+st.set_page_config(page_title="Daily Work Report", layout="centered")
 
-# Custom CSS for Centering
+# Custom CSS for Centering and Styling
 st.markdown("""
     <style>
     div[data-testid="stTable"] table { margin-left: auto; margin-right: auto; width: 100%; }
     th { text-align: center !important; background-color: #f0f2f6; }
     td { text-align: center !important; }
+    .footer-row { font-weight: bold; background-color: #f9f9f9; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -19,14 +20,14 @@ st.markdown("""
 if 'history' not in st.session_state:
     st.session_state.history = []
 if 'report_name' not in st.session_state:
-    st.session_state.report_name = "User"
+    st.session_state.report_name = ""
 if 'fixed_rate' not in st.session_state:
     st.session_state.fixed_rate = 0.0
 
 # --- Sidebar / Settings Section ---
 with st.sidebar:
     st.header("⚙️ Settings")
-    new_name = st.text_input("Name Badlein:", value=st.session_state.report_name)
+    new_name = st.text_input("Naam Likhein:", value=st.session_state.report_name)
     new_rate = st.number_input("Rate Fix Karein:", value=st.session_state.fixed_rate, step=1.0)
     
     if st.button("Save Settings"):
@@ -36,8 +37,14 @@ with st.sidebar:
         st.rerun()
 
 # --- Main App ---
-st.title("📝 Daily Cash Report")
-st.subheader(f"👤 Report For: {st.session_state.report_name}")
+st.title("📝 Daily Work Report")
+
+# Display Name with Icon (User word hataya gaya)
+if st.session_state.report_name:
+    st.subheader(f"👤 {st.session_state.report_name}")
+else:
+    st.subheader("👤 (Naam settings mein bharein)")
+
 st.info(f"💰 Fixed Rate: ₹{st.session_state.fixed_rate:.2f}")
 
 # --- Input Section ---
@@ -45,7 +52,6 @@ with st.expander("➕ Nayi Entry Karein", expanded=True):
     date_today = st.date_input("Date Select Karein", datetime.now())
     quantity = st.number_input("Quantity", min_value=0, step=1, value=0)
     
-    # Auto Calculation using fixed rate
     total_amount = float(st.session_state.fixed_rate * quantity)
     st.write(f"Calculation: {quantity} Qty x ₹{st.session_state.fixed_rate} = **₹{total_amount:.2f}**")
 
@@ -53,7 +59,7 @@ with st.expander("➕ Nayi Entry Karein", expanded=True):
         entry_id = datetime.now().timestamp()
         entry = {
             "ID": entry_id, 
-            "Date": date_today, 
+            "Date": date_today.strftime("%Y-%m-%d"), 
             "Day": date_today.day,
             "Quantity": int(quantity),
             "Month": date_today.strftime("%B %Y"),
@@ -77,10 +83,9 @@ if st.session_state.history:
     with col2:
         day_range = st.radio("Days Slot:", ["1 to 10", "11 to 20", "21 to 31", "Full Month"], horizontal=True)
 
-    # Filter by Month
+    # Filtering Logic
     month_data = [item for item in st.session_state.history if item['Month'] == selected_month]
     
-    # Filter by Day Slot
     if day_range == "1 to 10":
         filtered_data = [item for item in month_data if 1 <= item['Day'] <= 10]
     elif day_range == "11 to 20":
@@ -90,20 +95,30 @@ if st.session_state.history:
     else:
         filtered_data = month_data
 
-    # Display Table
+    # Display Table with Totals
     if filtered_data:
-        display_df = pd.DataFrame(filtered_data)[["Date", "Quantity", "Amount"]]
-        display_df = display_df.sort_values(by="Date", ascending=False)
-        st.table(display_df.style.format({"Amount": "{:.2f}"}))
-
-        month_total = sum(item['Amount'] for item in filtered_data)
-        st.metric(f"Total Amount ({day_range})", f"₹{month_total:.2f}")
+        df = pd.DataFrame(filtered_data)[["Date", "Quantity", "Amount"]]
+        df = df.sort_values(by="Date", ascending=False)
+        
+        # Calculate Totals
+        total_qty = df["Quantity"].sum()
+        total_amt = df["Amount"].sum()
+        
+        # Display Table
+        st.table(df.style.format({"Amount": "{:.2f}"}))
+        
+        # Column-wise Totals (Quantity ke niche Quantity, Amount ke niche Amount)
+        t_col1, t_col2, t_col3 = st.columns([2, 1, 1])
+        with t_col1: st.markdown("**TOTAL:**")
+        with t_col2: st.markdown(f"**{total_qty}**")
+        with t_col3: st.markdown(f"**₹{total_amt:.2f}**")
 
         # WhatsApp Share
-        report_text = f"*Daily Cash Report - {st.session_state.report_name}*\n📅 {selected_month} ({day_range})\n\n"
-        for _, row in display_df.iterrows():
+        st.divider()
+        report_text = f"*Daily Work Report - {st.session_state.report_name}*\n📅 {selected_month} ({day_range})\n\n"
+        for _, row in df.iterrows():
             report_text += f"• {row['Date']} | Qty: {row['Quantity']} | ₹{row['Amount']:.2f}\n"
-        report_text += f"\n*Total: ₹{month_total:.2f}*"
+        report_text += f"\n*Total Qty: {total_qty}*\n*Total Amount: ₹{total_amt:.2f}*"
         
         encoded_text = urllib.parse.quote(report_text)
         whatsapp_url = f"https://wa.me/?text={encoded_text}"
@@ -122,4 +137,3 @@ if st.session_state.history:
             st.rerun()
 else:
     st.write("Abhi koi data nahi hai. Nayi entry karein.")
-    
