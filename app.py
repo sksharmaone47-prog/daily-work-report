@@ -6,9 +6,17 @@ import urllib.parse
 # App Configuration
 st.set_page_config(page_title="Daily Work Report", layout="centered")
 
-# Custom CSS for Styling
+# Custom CSS for One-Line Title and Centering
 st.markdown("""
     <style>
+    /* Title ko ek line mein karne ke liye */
+    .main-title {
+        text-align: center;
+        font-size: 32px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        white-space: nowrap;
+    }
     div[data-testid="stTable"] table { margin-left: auto; margin-right: auto; width: 100%; }
     th { text-align: center !important; background-color: #f0f2f6; color: black; }
     td { text-align: center !important; }
@@ -25,6 +33,9 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# --- One-Line Title ---
+st.markdown('<div class="main-title">📝 Daily Work Report</div>', unsafe_allow_html=True)
+
 # Initialize Session State
 if 'history' not in st.session_state: st.session_state.history = []
 if 'report_name' not in st.session_state: st.session_state.report_name = ""
@@ -37,8 +48,7 @@ with st.sidebar:
     st.session_state.fixed_rate = st.number_input("Rate Fix Karein:", value=st.session_state.fixed_rate, step=1.0)
     if st.button("Save Settings"): st.rerun()
 
-# --- Main App ---
-st.title("📝 Daily Work Report")
+# --- Display Name and Rate ---
 if st.session_state.report_name:
     st.subheader(f"👤 {st.session_state.report_name}")
 st.info(f"💰 Fixed Rate: ₹{st.session_state.fixed_rate:.2f}")
@@ -72,7 +82,6 @@ if st.session_state.history:
     with col2:
         day_range = st.radio("Days Slot:", ["1 to 10", "11 to 20", "21 to 31", "Full Month"], horizontal=True)
 
-    # Filtering Logic
     month_data = [item for item in st.session_state.history if item['Month'] == selected_month]
     if day_range == "1 to 10":
         filtered_data = [item for item in month_data if 1 <= item['Day'] <= 10]
@@ -85,39 +94,36 @@ if st.session_state.history:
 
     if filtered_data:
         df = pd.DataFrame(filtered_data)[["Date", "Quantity", "Amount"]]
-        # Sorting by Date
         df['dt_obj'] = pd.to_datetime(df['Date'], format='%d-%m-%Y')
         df = df.sort_values(by="dt_obj", ascending=False).drop(columns=['dt_obj'])
         
         total_qty = df["Quantity"].sum()
         total_amt = df["Amount"].sum()
         
-        # --- Total Display ---
+        # Total Box Display
         st.markdown(f"""
             <div class="total-box">
                 Total Quantity = {total_qty} &nbsp; | &nbsp; Total Amount = ₹{total_amt:.2f}
             </div>
             """, unsafe_allow_html=True)
         
-        # --- Table ---
+        # Table Display
         st.table(df.style.format({"Amount": "{:.2f}"}))
 
-        # --- WhatsApp Share (Updated formatting for single line) ---
-        st.subheader("📲 Share on WhatsApp")
-        report_text = f"*Daily Work Report - {st.session_state.report_name}*\n📅 {selected_month} ({day_range})\n"
-        report_text += "----------------------------\n"
-        report_text += "*Date | Qty | Amount*\n" # Header line for WhatsApp
+        # --- WhatsApp Share (Updated Single Line Formatting) ---
+        st.subheader("📲 Share Report")
+        report_text = f"*Daily Work Report - {st.session_state.report_name}*\n"
+        report_text += f"📅 {selected_month} ({day_range})\n\n"
         
         for _, row in df.iterrows():
-            # Ek hi line mein Date, Qty aur Amount
-            report_text += f"{row['Date']} | {row['Quantity']} | ₹{row['Amount']:.2f}\n"
+            # Seedhi line format: Date | Qty | Amount
+            report_text += f"• {row['Date']} | Qty: {row['Quantity']} | ₹{row['Amount']:.2f}\n"
         
-        report_text += "----------------------------\n"
-        report_text += f"*Total Qty = {total_qty}*\n"
-        report_text += f"*Total Amount = ₹{total_amt:.2f}*"
+        report_text += f"\n*Total Quantity = {total_qty}*"
+        report_text += f"\n*Total Amount = ₹{total_amt:.2f}*"
         
         encoded_text = urllib.parse.quote(report_text)
-        st.link_button("Send Report ✅", f"https://wa.me/?text={encoded_text}")
+        st.link_button("Send on WhatsApp ✅", f"https://wa.me/?text={encoded_text}")
 
     # Delete Section
     with st.expander("🗑️ Entry Delete Karein"):
