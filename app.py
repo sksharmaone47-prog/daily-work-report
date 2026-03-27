@@ -52,7 +52,7 @@ with st.expander("➕ Nayi Entry Karein", expanded=True):
     if st.button("Save Entry"):
         entry_id = datetime.now().timestamp()
         entry = {
-            "ID": entry_id, "Date": date_today.strftime("%Y-%m-%d"), 
+            "ID": entry_id, "Date": date_today.strftime("%d-%m-%Y"), 
             "Day": date_today.day, "Quantity": int(quantity),
             "Month": date_today.strftime("%B %Y"), "Amount": total_amount
         }
@@ -85,29 +85,39 @@ if st.session_state.history:
 
     if filtered_data:
         df = pd.DataFrame(filtered_data)[["Date", "Quantity", "Amount"]]
-        df = df.sort_values(by="Date", ascending=False)
+        # Sorting by Date
+        df['dt_obj'] = pd.to_datetime(df['Date'], format='%d-%m-%Y')
+        df = df.sort_values(by="dt_obj", ascending=False).drop(columns=['dt_obj'])
         
-        # --- Totals Display (Jaise aapne manga tha) ---
         total_qty = df["Quantity"].sum()
         total_amt = df["Amount"].sum()
         
+        # --- Total Display ---
         st.markdown(f"""
             <div class="total-box">
                 Total Quantity = {total_qty} &nbsp; | &nbsp; Total Amount = ₹{total_amt:.2f}
             </div>
             """, unsafe_allow_html=True)
         
-        # --- Table below totals ---
+        # --- Table ---
         st.table(df.style.format({"Amount": "{:.2f}"}))
 
-        # WhatsApp Share
-        report_text = f"*Daily Work Report - {st.session_state.report_name}*\n📅 {selected_month} ({day_range})\n\n"
+        # --- WhatsApp Share (Updated formatting for single line) ---
+        st.subheader("📲 Share on WhatsApp")
+        report_text = f"*Daily Work Report - {st.session_state.report_name}*\n📅 {selected_month} ({day_range})\n"
+        report_text += "----------------------------\n"
+        report_text += "*Date | Qty | Amount*\n" # Header line for WhatsApp
+        
         for _, row in df.iterrows():
-            report_text += f"• {row['Date']} | Qty: {row['Quantity']} | ₹{row['Amount']:.2f}\n"
-        report_text += f"\n*Total Quantity = {total_qty}*\n*Total Amount = ₹{total_amt:.2f}*"
+            # Ek hi line mein Date, Qty aur Amount
+            report_text += f"{row['Date']} | {row['Quantity']} | ₹{row['Amount']:.2f}\n"
+        
+        report_text += "----------------------------\n"
+        report_text += f"*Total Qty = {total_qty}*\n"
+        report_text += f"*Total Amount = ₹{total_amt:.2f}*"
         
         encoded_text = urllib.parse.quote(report_text)
-        st.link_button("Share on WhatsApp ✅", f"https://wa.me/?text={encoded_text}")
+        st.link_button("Send Report ✅", f"https://wa.me/?text={encoded_text}")
 
     # Delete Section
     with st.expander("🗑️ Entry Delete Karein"):
@@ -118,4 +128,4 @@ if st.session_state.history:
             st.rerun()
 else:
     st.write("Abhi koi data nahi hai.")
-        
+    
