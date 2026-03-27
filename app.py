@@ -11,7 +11,7 @@ st.set_page_config(page_title="Work Report Pro", layout="centered", page_icon="ð
 
 # --- Google Sheets Connection ---
 # Yahan apni Google Sheet ka URL dalein
-url = "APNI_GOOGLE_SHEET_URL_YAHAN_PASTE_KAREIN"
+url = "https://docs.google.com/spreadsheets/d/13IfQR6C-n1UtIa75au5CtSukamVW45W6QY-WvwFngms/edit?usp=drivesdk"
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 
