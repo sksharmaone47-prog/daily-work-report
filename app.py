@@ -4,19 +4,15 @@ from datetime import datetime
 import urllib.parse
 from PIL import Image
 import io
-from streamlit_gsheets import GSheetsConnection
 
 # App Configuration
 st.set_page_config(page_title="Work Report Pro", layout="centered", page_icon="📝")
 
-# --- Google Sheets Connection ---
-# Yahan apni Google Sheet ka URL dalein
-url = "https://docs.google.com/spreadsheets/d/13IfQR6C-n1UtIa75au5CtSukamVW45W6QY-WvwFngms/edit?usp=drivesdk"
-
-conn = st.connection("gsheets", type=GSheetsConnection)
-
-def get_data():
-    return conn.read(spreadsheet=url, usecols=[0,1,2,3,4,5], ttl="0")
+# --- Google Sheet Setup ---
+# APNA LINK YAHAN PASTE KAREIN (Make sure it is set to 'Anyone with link can EDITOR')
+SHEET_URL = "https://docs.google.com/spreadsheets/d/13IfQR6C-n1UtIa75au5CtSukamVW45W6QY-WvwFngms/edit?usp=drivesdk"
+# Form Response link (Isse hum direct data bhej sakte hain agar Sheets API use na karni ho)
+# Lekin asaan tarike ke liye hum Session State + CSV Download feature use karte hain
 
 # --- CSS Styling ---
 st.markdown("""
@@ -28,8 +24,9 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Initialize Session State for non-sheet data
-if 'report_name' not in st.session_state: st.session_state.report_name = "Employee"
+# Data Persistence (Local for now to avoid Connection Errors)
+if 'history' not in st.session_state: st.session_state.history = []
+if 'report_name' not in st.session_state: st.session_state.report_name = ""
 if 'fixed_rate' not in st.session_state: st.session_state.fixed_rate = 0.0
 if 'profile_pic' not in st.session_state: st.session_state.profile_pic = None
 
@@ -59,42 +56,45 @@ with st.expander("📝 Add New Work Entry", expanded=True):
     
     total_amount = float(st.session_state.fixed_rate * quantity)
     
-    if st.button("SAVE TO CLOUD ✅", use_container_width=True):
+    if st.button("SAVE ENTRY ✅", use_container_width=True):
         if st.session_state.fixed_rate > 0:
-            # Sheet se purana data laao
-            existing_data = get_data()
-            new_entry = pd.DataFrame([{
-                "ID": str(datetime.now().timestamp()),
+            new_entry = {
                 "Date": date_today.strftime("%d-%m-%Y"),
-                "Day": int(date_today.day),
                 "Quantity": int(quantity),
-                "Month": date_today.strftime("%B %Y"),
-                "Amount": total_amount
-            }])
-            updated_df = pd.concat([existing_data, new_entry], ignore_index=True)
-            conn.update(spreadsheet=url, data=updated_df)
-            st.success("Data Google Sheet mein save ho gaya!")
+                "Amount": total_amount,
+                "Month": date_today.strftime("%B %Y")
+            }
+            st.session_state.history.append(new_entry)
+            st.success("Entry Saved Successfully!")
             st.rerun()
         else:
             st.error("Rate set karein!")
 
 # --- Display Section ---
-df = get_data()
-if not df.empty:
-    st.markdown("### 📊 Work Record (From Cloud)")
+if st.session_state.history:
+    df = pd.DataFrame(st.session_state.history)
+    st.markdown("### 📊 Work Record")
+    
     all_months = sorted(df["Month"].unique())
-    selected_month = st.selectbox("Month", all_months)
+    selected_month = st.selectbox("Month Filter", all_months)
     
     filtered_df = df[df["Month"] == selected_month]
     
-    if not filtered_df.empty:
-        t_qty = filtered_df["Quantity"].astype(int).sum()
-        t_amt = filtered_df["Amount"].astype(float).sum()
-        
-        st.markdown(f'<div class="dashboard-container"><div class="dashboard-value">Qty: {t_qty}</div><div class="dashboard-value">Total: ₹{t_amt:.2f}</div></div>', unsafe_allow_html=True)
-        st.table(filtered_df[["Date", "Quantity", "Amount"]])
-        
-        # WhatsApp Share logic (same as before)
-        report_text = f"*WORK REPORT PRO*\nOwner: {st.session_state.report_name}\nMonth: {selected_month}\nTotal Qty: {t_qty}\nTotal Amt: ₹{t_amt:.2f}"
-        st.link_button("Share Report", f"https://wa.me/?text={urllib.parse.quote(report_text)}")
-            
+    t_qty = filtered_df["Quantity"].sum()
+    t_amt = filtered_df["Amount"].sum()
+    
+    st.markdown(f'<div class="dashboard-container"><div class="dashboard-value">Total Qty: {t_qty}</div><div class="dashboard-value">Total: ₹{t_amt:.2f}</div></div>', unsafe_allow_html=True)
+    st.table(filtered_df[["Date", "Quantity", "Amount"]])
+    
+    # WhatsApp Share
+    report_text = f"*WORK REPORT PRO - {st.session_state.report_name}*\n📅 {selected_month}\n\n"
+    for _, row in filtered_df.iterrows():
+        report_text += f"• {row['Date']} | Qty: {row['Quantity']} | ₹{row['Amount']:.2f}\n"
+    report_text += f"\n*Total Qty: {t_qty}*\n*Total Amount: ₹{t_amt:.2f}*"
+    
+    st.link_button("Share on WhatsApp ✅", f"https://wa.me/?text={urllib.parse.quote(report_text)}", use_container_width=True)
+
+    # Permanent Backup Option
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 Excel/CSV Backup Download", data=csv, file_name=f"work_report_{datetime.now().strftime('%d_%m_%Y')}.csv", mime='text/csv', use_container_width=True)
+    
