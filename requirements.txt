@@ -1,5 +1,2 @@
 streamlit
 pandas
-Pillow
-gspread # GSheets API Direct read/write ke liye
-oauth2client # Authentication ke liye
